@@ -36,6 +36,11 @@ public class StockQuote implements Serializable {
 		this.quotes = quotes;
 	}
 	
+	public StockQuote(String id, @NotBlank String description) {
+		this.id = id;
+		this.description = description;
+	}
+	
 	public String getId() {
 		return id;
 	}
