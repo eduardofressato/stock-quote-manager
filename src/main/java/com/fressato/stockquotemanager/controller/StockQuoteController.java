@@ -43,19 +43,19 @@ public class StockQuoteController {
 	private StockQuote[] cacheStock;
 	
 	public StockQuoteController() {
-		registerNotification();
+		this.registerNotification();
 	}
 	
 	private void registerNotification() {
 		RestTemplate restTemplate = new RestTemplate();
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		String requestJson = "{\"host\": \""+ HOST +"\", \"port\": \"" + PORT + "\" }";
+		String requestJson = "{\"host\": \""+ this.HOST +"\", \"port\": \"" + this.PORT + "\" }";
 		
 		System.out.println("\n REGISTER NOTIFICATION: " + requestJson);
 
 		HttpEntity<String> entity = new HttpEntity<String>(requestJson, headers);
-		ResponseEntity<String> response = restTemplate.exchange(BASE_API + "notification", HttpMethod.POST, entity, String.class);
+		ResponseEntity<String> response = restTemplate.exchange(this.BASE_API + "notification", HttpMethod.POST, entity, String.class);
 
 		System.out.println("\n REGISTER NOTIFICATION RESPONSE: " + response);
 	}
@@ -68,7 +68,7 @@ public class StockQuoteController {
     	System.out.println("\n DOWNLOAD STOCKS");
     	
     	RestTemplate restTemplate = new RestTemplate();
-    	ResponseEntity<StockQuote[]> response = restTemplate.getForEntity(BASE_API + "stock", StockQuote[].class);
+    	ResponseEntity<StockQuote[]> response = restTemplate.getForEntity(this.BASE_API + "stock", StockQuote[].class);
     	StockQuote[] stockQuotes = response.getBody();
     	
     	return stockQuotes;
@@ -79,18 +79,18 @@ public class StockQuoteController {
      * @param id
      * @return
      */
-    private Boolean checkStockQuoteExists(String id) {
+    private StockQuote checkStockQuoteExists(String id) {
     	if (cacheStock == null) {
     		cacheStock = downloadStocks();
     	}
 
     	for (int i = 0; i < cacheStock.length; i++) {
     		if (id.equals(cacheStock[i].getId())) {
-    			return true;
+    			return cacheStock[i];
     		}
 		}
     	
-    	return false;
+    	return null;
     }
 	
 	/**
@@ -129,7 +129,8 @@ public class StockQuoteController {
     	System.out.println("\n CREATE STOCK QUOTES: " + jsonObject);
     	
     	// check external API
-    	if (checkStockQuoteExists(id) == false) {    		
+    	StockQuote stockAPI = checkStockQuoteExists(id);
+    	if (stockAPI == null) {    		
     		throw new NotAllowedToCreateException();
     	}
 
@@ -143,7 +144,7 @@ public class StockQuoteController {
     	    quotes.add(qSaved);
     	}
 
-    	StockQuote sq = new StockQuote(id, id, quotes);
+    	StockQuote sq = new StockQuote(id, stockAPI.getDescription(), quotes);
     	StockQuote sqCreated = stockQuoteRepository.save(sq);
     	
         return sqCreated;
