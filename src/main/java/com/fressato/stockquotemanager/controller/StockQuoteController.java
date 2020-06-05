@@ -36,14 +36,18 @@ public class StockQuoteController {
 	@Autowired
 	StockQuoteRepository stockQuoteRepository;
 	
-	private String BASE_API = "http://localhost:8080/";
+	private String BASE_API = "http://stockmanager:8080/";
 	private String HOST = "localhost";
 	private String PORT = "8081";
 	
 	private StockQuote[] cacheStock;
 	
 	public StockQuoteController() {
-		this.registerNotification();
+		try {
+			this.registerNotification();
+		} catch (Exception e) {
+			System.out.println("\n ERROR REGISTER NOTIFICATION: " + e);
+		}
 	}
 	
 	private void registerNotification() {
