@@ -6,7 +6,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,13 +36,68 @@ public class StockQuoteController {
 	@Autowired
 	StockQuoteRepository stockQuoteRepository;
 	
-	private String BASE_API = "http://localhost:8080/stock";
+	private String BASE_API = "http://localhost:8080/";
+	private String HOST = "localhost";
+	private String PORT = "8081";
+	
+	private StockQuote[] cacheStock;
+	
+	public StockQuoteController() {
+		registerNotification();
+	}
+	
+	private void registerNotification() {
+		RestTemplate restTemplate = new RestTemplate();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		String requestJson = "{\"host\": \""+ HOST +"\", \"port\": \"" + PORT + "\" }";
+		
+		System.out.println("\n REGISTER NOTIFICATION: " + requestJson);
+
+		HttpEntity<String> entity = new HttpEntity<String>(requestJson, headers);
+		ResponseEntity<String> response = restTemplate.exchange(BASE_API + "notification", HttpMethod.POST, entity, String.class);
+
+		System.out.println("\n REGISTER NOTIFICATION RESPONSE: " + response);
+	}
+	
+    /**
+     * Download stocks and cache
+     * @return
+     */
+    private StockQuote[] downloadStocks() {
+    	System.out.println("\n DOWNLOAD STOCKS");
+    	
+    	RestTemplate restTemplate = new RestTemplate();
+    	ResponseEntity<StockQuote[]> response = restTemplate.getForEntity(BASE_API + "stock", StockQuote[].class);
+    	StockQuote[] stockQuotes = response.getBody();
+    	
+    	return stockQuotes;
+    }
+    
+    /**
+     * Check if the id exists in cache Stocks
+     * @param id
+     * @return
+     */
+    private Boolean checkStockQuoteExists(String id) {
+    	if (cacheStock == null) {
+    		cacheStock = downloadStocks();
+    	}
+
+    	for (int i = 0; i < cacheStock.length; i++) {
+    		if (id.equals(cacheStock[i].getId())) {
+    			return true;
+    		}
+		}
+    	
+    	return false;
+    }
 	
 	/**
 	 * Get All Stock Quotes
 	 * @return
 	 */
-    @GetMapping("/stock-quotes")
+    @GetMapping("/stockquotes")
     public List<StockQuote> getAllQuotes() {
         return stockQuoteRepository.findAll();
     }
@@ -47,37 +107,18 @@ public class StockQuoteController {
      * @param stockQuoteId
      * @return
      */
-    @GetMapping("/stock-quotes/{id}")
+    @GetMapping("/stockquotes/{id}")
     public StockQuote getStockNoteById(@PathVariable(value = "id") String stockQuoteId) {
         return stockQuoteRepository.findById(stockQuoteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Stock Quote", "id", stockQuoteId));
-    }
-    
-    /**
-     * Check if the id exists in the external API
-     * @param id
-     * @return
-     */
-    private Boolean checkStockQuoteExists(String id) {
-    	RestTemplate restTemplate = new RestTemplate();
-    	ResponseEntity<StockQuote[]> response = restTemplate.getForEntity(BASE_API, StockQuote[].class);
-    	StockQuote[] stockQuotes = response.getBody();
-    	    	
-    	for (int i = 0; i < stockQuotes.length; i++) {
-    		if (id.equals(stockQuotes[i].getId())) {
-    			return true;
-    		}
-		}
-    	
-    	return false;
-    }
+    } 
     
     /**
      * Create a Stock Quote
      * @param body
      * @return
      */
-    @PostMapping("/stock-quotes")
+    @PostMapping("/stockquotes")
     public StockQuote createStockQuote(@RequestBody String body) {
     	
     	List<Quote> quotes = new ArrayList<Quote>();    	 
@@ -85,8 +126,7 @@ public class StockQuoteController {
     	Set<String> days = jsonObject.get("quotes").getAsJsonObject().keySet();
     	String id = jsonObject.get("id").getAsString();
     	    	
-    	System.out.println("\n createStockQuote body:");
-    	System.out.println(""+jsonObject);
+    	System.out.println("\n CREATE STOCK QUOTES: " + jsonObject);
     	
     	// check external API
     	if (checkStockQuoteExists(id) == false) {    		
@@ -107,5 +147,17 @@ public class StockQuoteController {
     	StockQuote sqCreated = stockQuoteRepository.save(sq);
     	
         return sqCreated;
+    }
+    
+	/**
+	 * Delete stocks cache
+	 * @return
+	 */
+    @DeleteMapping("/stockcache")
+    public String deleteCache() {
+    	System.out.println("\n DELETE CACHE");
+
+    	cacheStock = null;   	
+        return "Cache successfully deleted.";
     }
 }
